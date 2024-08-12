@@ -29,6 +29,18 @@ pub fn derive(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                 }
             });
 
+            // builder functions
+            let builder_fn = fields.iter().map(|f| {
+                let ident = &f.ident;
+                let ty = &f.ty;
+                quote! {
+                    fn #ident(&mut self, #ident: #ty) -> &mut Self {
+                        self.#ident = Some(#ident);
+                        self
+                    }
+                }
+            });
+
             quote! {
                 impl #ident {
                     pub fn builder() -> #bident {
@@ -40,6 +52,10 @@ pub fn derive(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 
                 pub struct #bident {
                     #(#builder_struct_fields,)*
+                }
+
+                impl #bident {
+                    #(#builder_fn)*
                 }
             }.into()
         }
