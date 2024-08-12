@@ -1,6 +1,8 @@
 use proc_macro2::Span;
 use quote::quote;
-use syn::{parse_macro_input, DeriveInput, Ident};
+use syn::{
+    parse_macro_input, AngleBracketedGenericArguments, DeriveInput, Ident, PathArguments, Type,
+};
 
 #[proc_macro_derive(Builder)]
 pub fn derive(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
@@ -15,7 +17,12 @@ pub fn derive(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             // fields in `Builder` struct
             let builder_struct_fields = fields.iter().map(|f| {
                 let ident = &f.ident;
-                let ty = &f.ty;
+                let ty = if let Some(ty) = get_generic_args(&f.ty, "Option") {
+                    ty
+                } else {
+                    &f.ty
+                };
+
                 quote! {
                     #ident: Option<#ty>
                 }
@@ -32,7 +39,11 @@ pub fn derive(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             // builder functions
             let builder_fn = fields.iter().map(|f| {
                 let ident = &f.ident;
-                let ty = &f.ty;
+                let ty = if let Some(ty) = get_generic_args(&f.ty, "Option") {
+                    ty
+                } else {
+                    &f.ty
+                };
                 quote! {
                     fn #ident(&mut self, #ident: #ty) -> &mut Self {
                         self.#ident = Some(#ident);
@@ -45,8 +56,15 @@ pub fn derive(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             let build_fn_fields = fields.iter().map(|f| {
                 let ident = &f.ident;
                 let err_msg = format!("{} is not set", ident.as_ref().unwrap());
-                quote! {
-                    #ident: self.#ident.clone().ok_or(#err_msg)?
+
+                if get_generic_args(&f.ty, "Option").is_some() {
+                    quote! {
+                        #ident: self.#ident.clone()
+                    }
+                } else {
+                    quote! {
+                        #ident: self.#ident.clone().ok_or(#err_msg)?
+                    }
                 }
             });
 
@@ -70,10 +88,38 @@ pub fn derive(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 
                     #(#builder_fn)*
                 }
-            }.into()
+            }
+            .into()
         }
         syn::Data::Struct(_) => unimplemented!(),
         syn::Data::Enum(_) => unimplemented!(),
         syn::Data::Union(_) => unimplemented!(),
+    }
+}
+
+// TODO: rewrite this
+fn get_generic_args<'a>(ty: &'a Type, ident: &str) -> Option<&'a Type> {
+    match ty {
+        Type::Path(type_path) => {
+            if type_path.path.segments.is_empty() || type_path.path.segments[0].ident != ident {
+                return None;
+            }
+
+            if let PathArguments::AngleBracketed(AngleBracketedGenericArguments { args, .. }) =
+                &type_path.path.segments[0].arguments
+            {
+                if args.len() == 1 {
+                    match args[0] {
+                        syn::GenericArgument::Type(ref ty) => Some(ty),
+                        _ => None,
+                    }
+                } else {
+                    None
+                }
+            } else {
+                None
+            }
+        }
+        _ => None,
     }
 }
