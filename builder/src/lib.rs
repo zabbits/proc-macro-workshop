@@ -41,6 +41,15 @@ pub fn derive(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                 }
             });
 
+            // build function
+            let build_fn_fields = fields.iter().map(|f| {
+                let ident = &f.ident;
+                let err_msg = format!("{} is not set", ident.as_ref().unwrap());
+                quote! {
+                    #ident: self.#ident.clone().ok_or(#err_msg)?
+                }
+            });
+
             quote! {
                 impl #ident {
                     pub fn builder() -> #bident {
@@ -55,6 +64,10 @@ pub fn derive(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                 }
 
                 impl #bident {
+                    pub fn build(&mut self) -> Result<#ident, Box<dyn std::error::Error>> {
+                        Ok(#ident { #(#build_fn_fields,)* })
+                    }
+
                     #(#builder_fn)*
                 }
             }.into()
