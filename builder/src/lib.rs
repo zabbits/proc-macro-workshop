@@ -47,7 +47,7 @@ pub fn derive(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                 };
 
                 quote! {
-                    #ident: Option<#ty>
+                    #ident: std::option::Option<#ty>
                 }
             });
 
@@ -55,7 +55,7 @@ pub fn derive(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             let builder_fn_fields = fields.iter().map(|f| {
                 let ident = &f.ident;
                 quote! {
-                    #ident: None
+                    #ident: std::option::Option::None
                 }
             });
 
@@ -70,7 +70,7 @@ pub fn derive(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                     let each_fn = quote! {
                         fn #each_ident(&mut self, #each_ident: #ty) -> &mut Self {
                             if self.#ident.is_none() {
-                                self.#ident = Some(vec![]);
+                                self.#ident = std::option::Option::Some(vec![]);
                             }
                             self.#ident.as_mut().unwrap().push(#each_ident);
                             self
@@ -85,7 +85,7 @@ pub fn derive(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                             #each_fn
 
                             fn #ident(&mut self, #ident: #ty) -> &mut Self {
-                                self.#ident = Some(#ident);
+                                self.#ident = std::option::Option::Some(#ident);
                                 self
                             }
                         };
@@ -99,7 +99,7 @@ pub fn derive(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                 };
                 quote! {
                     fn #ident(&mut self, #ident: #ty) -> &mut Self {
-                        self.#ident = Some(#ident);
+                        self.#ident = std::option::Option::Some(#ident);
                         self
                     }
                 }
@@ -141,7 +141,7 @@ pub fn derive(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                 }
 
                 impl #bident {
-                    pub fn build(&mut self) -> Result<#ident, Box<dyn std::error::Error>> {
+                    pub fn build(&mut self) -> std::result::Result<#ident, std::boxed::Box<dyn std::error::Error>> {
                         Ok(#ident { #(#build_fn_fields,)* })
                     }
 
