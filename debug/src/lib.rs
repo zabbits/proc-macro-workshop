@@ -1,9 +1,10 @@
 use quote::quote;
 use syn::{parse_macro_input, DeriveInput};
 
-#[proc_macro_derive(CustomDebug)]
+#[proc_macro_derive(CustomDebug, attributes(debug))]
 pub fn derive(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
+    println!("{:#?}", input);
     let ident = input.ident;
     match input.data {
         syn::Data::Struct(syn::DataStruct { fields, .. }) => {
@@ -24,4 +25,21 @@ pub fn derive(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         }
         _ => unimplemented!(),
     }
+}
+
+fn get_debug_attr(f: &syn::Field) {
+    f.attrs.iter().find_map(|attr| {
+        // meta must be a NamedValue
+        if let syn::Meta::NameValue(nv) = &attr.meta {
+            if !nv.path.is_ident("debug") {
+                return None;
+            }
+            match &nv.value {
+                syn::Expr::Lit(syn::ExprLit { lit: syn::Lit::Str(litstr), .. }) => Some(litstr.value()),
+                _ => None
+            }
+        } else {
+            None
+        }
+    });
 }
