@@ -1,14 +1,14 @@
 use proc_macro2::Span;
 use quote::quote;
 use syn::{
-    AngleBracketedGenericArguments, Attribute, DeriveInput, Expr, ExprLit, ExprPath, Field, Ident,
-    LitStr, PathArguments, PathSegment, Type,
+    AngleBracketedGenericArguments, Attribute, DeriveInput, Expr,
+    ExprAssign, ExprLit, ExprPath, Field, Ident, LitStr, PathArguments, PathSegment, Type,
 };
 
 #[proc_macro_derive(Builder, attributes(builder))]
 pub fn derive(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let input = syn::parse_macro_input!(input as DeriveInput);
-    println!("{:#?}", input);
+    // println!("{:#?}", input);
     let ident = input.ident;
     let bident = Ident::new(&format!("{}Builder", ident), Span::call_site());
     match &input.data {
@@ -16,6 +16,27 @@ pub fn derive(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             fields: syn::Fields::Named(syn::FieldsNamed { named: fields, .. }),
             ..
         }) => {
+            // check unrecognized attributes
+            for f in fields {
+                for attr in &f.attrs {
+                    if !attr.path().is_ident("builder") {
+                        continue;
+                    }
+                    let expr = attr.parse_args::<Expr>().unwrap();
+                    // only attr `each` is valid
+                    if let Expr::Assign(ExprAssign { ref left, .. }) = expr {
+                        if let Expr::Path(p) = left.as_ref() {
+                            if p.path.is_ident("each") {
+                                continue;
+                            }
+                        }
+                    }
+                    return syn::Error::new_spanned(&attr.meta, "expected `builder(each = \"...\")`")
+                        .to_compile_error()
+                        .into();
+                }
+            }
+
             // fields in `Builder` struct
             let builder_struct_fields = fields.iter().map(|f| {
                 let ident = &f.ident;
