@@ -10,7 +10,7 @@ use syn::{
 #[proc_macro_derive(CustomDebug, attributes(debug))]
 pub fn derive(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let mut input = syn::parse_macro_input!(input as DeriveInput);
-    // println!("{:#?}", input);
+    println!("{:#?}", input);
     let ident = input.ident;
     match input.data {
         Data::Struct(DataStruct { fields, .. }) => {
@@ -97,6 +97,8 @@ fn add_field_traits_bound(generics: &mut Generics, fields: &Fields) {
     }
 }
 
+// TODO:
+// if field type is Option<A<B<C>>>, so we need find the deepest type same as the ident
 fn is_type_in_path(path: &Path, ident: &Ident) -> bool {
     if path.segments.len() != 1 {
         return false;
